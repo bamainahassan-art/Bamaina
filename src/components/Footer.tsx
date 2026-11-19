@@ -58,6 +58,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   { route: 'poultry', label: 'Poultry Farming' },
                   { route: 'fish-farming', label: 'Fish Farming' },
                   { route: 'gallery', label: 'Our Gallery' },
+                  { route: 'checkout', label: 'Order & Checkout' },
+                  { route: 'payment-records', label: 'Payment Records & Setup' },
                   { route: 'contact', label: 'Contact Us' },
                 ] as { route: PageRoute; label: string }[]
               ).map((item) => (

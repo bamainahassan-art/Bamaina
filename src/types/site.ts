@@ -5,7 +5,13 @@ export type PageRoute =
   | 'poultry'
   | 'fish-farming'
   | 'gallery'
-  | 'contact';
+  | 'contact'
+  | 'checkout'
+  | 'payment-success'
+  | 'payment-failed'
+  | 'payment-pending'
+  | 'paystack-test-checkout'
+  | 'payment-records';
 
 export type DivisionKey = 'livestock' | 'poultry' | 'fish-farming';
 
@@ -97,6 +103,8 @@ export interface FarmProduct {
   description: string;
   availability: string;
   imageUrl: string;
+  priceNgn?: number;
+  unitLabel?: string;
 }
 
 export interface GalleryItem {
@@ -133,4 +141,69 @@ export interface SiteContent {
   };
   gallery: GalleryItem[];
   contact: ContactPageContent;
+}
+
+export interface CartItem {
+  productId: string;
+  quantity: number;
+}
+
+export interface ServerProductDTO {
+  id: string;
+  division: DivisionKey;
+  name: string;
+  unit_label: string;
+  price_ngn: number;
+  description: string;
+  availability: string;
+  image_url: string;
+  active: number;
+}
+
+export interface PaymentRecordDTO {
+  id: number;
+  transaction_id: string | null;
+  payment_reference: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  order_id: string;
+  amount_kobo: number;
+  amount_ngn: number;
+  currency: string;
+  payment_method: string;
+  payment_status: 'pending' | 'success' | 'failed';
+  gateway_response: string | null;
+  webhook_processed: number;
+  transaction_date: string;
+}
+
+export interface OrderItemSnapshotDTO {
+  productId: string;
+  name: string;
+  unitLabel: string;
+  quantity: number;
+  unitPriceNgn: number;
+  unitPriceKobo: number;
+  lineTotalKobo: number;
+}
+
+export interface PaymentVerificationDTO {
+  verified: boolean;
+  status: 'success' | 'pending' | 'failed';
+  message: string;
+  mode: 'live' | 'test' | 'simulation';
+  order?: {
+    id: string;
+    payment_reference: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string;
+    total_kobo: number;
+    currency: string;
+    status: string;
+    created_at: string;
+  };
+  payment?: PaymentRecordDTO;
+  items?: OrderItemSnapshotDTO[];
 }

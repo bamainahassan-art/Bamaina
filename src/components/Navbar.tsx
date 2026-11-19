@@ -216,6 +216,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
               { route: 'poultry', label: 'Poultry Farming' },
               { route: 'fish-farming', label: 'Fish Farming' },
               { route: 'gallery', label: 'Our Gallery' },
+              { route: 'checkout', label: 'Order & Checkout' },
               { route: 'contact', label: 'Contact Us' },
             ] as { route: PageRoute; label: string }[]
           ).map((item) => (

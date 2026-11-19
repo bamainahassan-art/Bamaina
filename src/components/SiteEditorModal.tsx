@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, Upload, X } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 import { useSiteContent } from '../context/SiteContentContext';
 import { FARM_IMAGE_ASSETS } from '../data/defaultSiteContent';
 import {
   DivisionKey,
-  FarmProduct,
   GalleryCategory,
   GalleryItem,
+  ServerProductDTO,
 } from '../types/site';
 import { readImageFileAsDataUrl } from '../utils/imageUpload';
 import { ResilientImage } from './ResilientImage';
@@ -26,19 +27,20 @@ export const SiteEditorModal: React.FC = () => {
     closeEditor,
     updateContent,
     updateBusinessInfo,
-    addProduct,
-    updateProduct,
-    deleteProduct,
     addGalleryItem,
     updateGalleryItem,
     deleteGalleryItem,
   } = useSiteContent();
+
+  const { serverProducts, refreshProducts } = useCart();
 
   const [managerTab, setManagerTab] = useState<'products' | 'gallery'>('products');
 
   // New Product Form State
   const [newProdDivision, setNewProdDivision] = useState<DivisionKey>('livestock');
   const [newProdName, setNewProdName] = useState('');
+  const [newProdPrice, setNewProdPrice] = useState('10000');
+  const [newProdUnit, setNewProdUnit] = useState('Per Unit');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdAvail, setNewProdAvail] = useState('Available on Enquiry');
   const [newProdImage, setNewProdImage] = useState(FARM_IMAGE_ASSETS.livestock);
@@ -135,18 +137,47 @@ export const SiteEditorModal: React.FC = () => {
     </div>
   );
 
-  const handleAddProduct = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName.trim()) return;
-    addProduct({
-      division: newProdDivision,
-      name: newProdName.trim(),
-      description: newProdDesc.trim() || 'Raised with attentive daily care on our farm.',
-      availability: newProdAvail.trim() || 'Available on Enquiry',
-      imageUrl: newProdImage,
+    const priceNum = Math.max(100, Math.round(Number(newProdPrice) || 1000));
+    await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        division: newProdDivision,
+        name: newProdName.trim(),
+        unit_label: newProdUnit.trim() || 'Per Unit',
+        price_ngn: priceNum,
+        description:
+          newProdDesc.trim() || 'Raised with attentive daily care on our farm.',
+        availability: newProdAvail.trim() || 'Available on Enquiry',
+        image_url: newProdImage,
+      }),
     });
+    await refreshProducts();
     setNewProdName('');
     setNewProdDesc('');
+  };
+
+  const handleUpdateServerProduct = async (
+    product: ServerProductDTO,
+    patch: Partial<ServerProductDTO>
+  ) => {
+    const merged = { ...product, ...patch };
+    await fetch(`/api/products/${encodeURIComponent(product.id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(merged),
+    });
+    await refreshProducts();
+  };
+
+  const handleDeleteServerProduct = async (id: string) => {
+    await fetch(`/api/products/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    await refreshProducts();
   };
 
   const handleAddGallery = (e: React.FormEvent) => {
@@ -929,7 +960,7 @@ export const SiteEditorModal: React.FC = () => {
                       : 'text-[#2A4135] hover:text-[#0E3B25]'
                   }`}
                 >
-                  Farm Products ({content.products.length})
+                  Farm Products ({serverProducts.length})
                 </button>
                 <button
                   type="button"
@@ -952,7 +983,7 @@ export const SiteEditorModal: React.FC = () => {
                     className="p-4 rounded-lg border border-[#0E3B25]/15 bg-[#F4F7F5] space-y-3"
                   >
                     <h3 className="text-xs font-bold uppercase tracking-wider text-[#0E3B25]">
-                      Add New Farm Product
+                      Add New Farm Product (Server-Side NGN Pricing)
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
@@ -980,6 +1011,33 @@ export const SiteEditorModal: React.FC = () => {
                           value={newProdAvail}
                           onChange={(e) => setNewProdAvail(e.target.value)}
                           placeholder="e.g. Available on Enquiry"
+                          className="w-full px-3 py-2 rounded-md border border-[#0E3B25]/20 bg-white text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-1">
+                        <label className="block text-xs font-medium mb-1">
+                          Price (NGN)
+                        </label>
+                        <input
+                          type="number"
+                          min={100}
+                          required
+                          value={newProdPrice}
+                          onChange={(e) => setNewProdPrice(e.target.value)}
+                          className="w-full px-3 py-2 rounded-md border border-[#0E3B25]/20 bg-white text-xs tabular-nums"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-medium mb-1">
+                          Unit Label
+                        </label>
+                        <input
+                          type="text"
+                          value={newProdUnit}
+                          onChange={(e) => setNewProdUnit(e.target.value)}
+                          placeholder="e.g. Per Bird, Per Crate, Per Kg"
                           className="w-full px-3 py-2 rounded-md border border-[#0E3B25]/20 bg-white text-xs"
                         />
                       </div>
@@ -1023,68 +1081,78 @@ export const SiteEditorModal: React.FC = () => {
                     </button>
                   </form>
 
-                  {/* Existing Products List */}
+                  {/* Existing Server Products List */}
                   <div className="space-y-3">
-                    {content.products.map((product: FarmProduct) => (
+                    {serverProducts.map((product) => (
                       <div
                         key={product.id}
                         className="p-3 rounded-lg border border-[#0E3B25]/15 bg-white flex flex-col sm:flex-row gap-3 items-start"
                       >
                         <div className="w-20 h-16 rounded-md overflow-hidden shrink-0 border border-[#0E3B25]/10">
                           <ResilientImage
-                            src={product.imageUrl}
+                            src={product.image_url}
                             alt={product.name}
                             className="w-full h-full object-cover"
                           />
                         </div>
                         <div className="flex-1 w-full space-y-2">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <input
                               type="text"
-                              value={product.name}
-                              onChange={(e) =>
-                                updateProduct(product.id, { name: e.target.value })
-                              }
+                              defaultValue={product.name}
+                              onBlur={(e) => {
+                                if (e.target.value.trim() && e.target.value !== product.name) {
+                                  handleUpdateServerProduct(product, {
+                                    name: e.target.value.trim(),
+                                  });
+                                }
+                              }}
                               className="px-2.5 py-1.5 border border-[#0E3B25]/20 rounded-md text-xs font-semibold"
                             />
-                            <div className="flex gap-2">
-                              <select
-                                value={product.division}
-                                onChange={(e) =>
-                                  updateProduct(product.id, {
-                                    division: e.target.value as DivisionKey,
-                                  })
+                            <input
+                              type="number"
+                              min={100}
+                              defaultValue={product.price_ngn}
+                              onBlur={(e) => {
+                                const val = Math.round(Number(e.target.value));
+                                if (val >= 100 && val !== product.price_ngn) {
+                                  handleUpdateServerProduct(product, {
+                                    price_ngn: val,
+                                  });
                                 }
-                                className="px-2 py-1.5 border border-[#0E3B25]/20 rounded-md text-xs bg-white"
-                              >
-                                <option value="livestock">Livestock</option>
-                                <option value="poultry">Poultry</option>
-                                <option value="fish-farming">Fish Farming</option>
-                              </select>
-                              <input
-                                type="text"
-                                value={product.availability}
-                                onChange={(e) =>
-                                  updateProduct(product.id, {
-                                    availability: e.target.value,
-                                  })
+                              }}
+                              aria-label={`NGN price for ${product.name}`}
+                              className="px-2.5 py-1.5 border border-[#0E3B25]/20 rounded-md text-xs tabular-nums"
+                            />
+                            <input
+                              type="text"
+                              defaultValue={product.unit_label}
+                              onBlur={(e) => {
+                                if (e.target.value.trim() && e.target.value !== product.unit_label) {
+                                  handleUpdateServerProduct(product, {
+                                    unit_label: e.target.value.trim(),
+                                  });
                                 }
-                                className="flex-1 px-2.5 py-1.5 border border-[#0E3B25]/20 rounded-md text-xs"
-                              />
-                            </div>
+                              }}
+                              className="px-2.5 py-1.5 border border-[#0E3B25]/20 rounded-md text-xs"
+                            />
                           </div>
                           <textarea
                             rows={2}
-                            value={product.description}
-                            onChange={(e) =>
-                              updateProduct(product.id, { description: e.target.value })
-                            }
+                            defaultValue={product.description}
+                            onBlur={(e) => {
+                              if (e.target.value !== product.description) {
+                                handleUpdateServerProduct(product, {
+                                  description: e.target.value,
+                                });
+                              }
+                            }}
                             className="w-full px-2.5 py-1.5 border border-[#0E3B25]/20 rounded-md text-xs"
                           />
                         </div>
                         <button
                           type="button"
-                          onClick={() => deleteProduct(product.id)}
+                          onClick={() => handleDeleteServerProduct(product.id)}
                           aria-label={`Remove ${product.name}`}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-md cursor-pointer shrink-0"
                         >

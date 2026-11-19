@@ -91,11 +91,19 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
                   <button
                     type="button"
+                    onClick={() => onNavigate('checkout')}
+                    className="inline-flex items-center gap-2 px-5 py-3.5 rounded-lg bg-[#0E3B25] border border-[#C8962E] text-[#DFB14B] font-semibold text-sm hover:bg-[#145333] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Order & Pay Now</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => onNavigate('contact')}
                     className="inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold text-[#F2DFB0] hover:text-white underline underline-offset-4 cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <span>Send Enquiry</span>
-                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
