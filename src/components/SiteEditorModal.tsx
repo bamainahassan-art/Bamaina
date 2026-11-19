@@ -322,6 +322,17 @@ export const SiteEditorModal: React.FC = () => {
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#0E3B25] mb-1">
+                  Official Email Address
+                </label>
+                <input
+                  type="email"
+                  value={content.business.email}
+                  onChange={(e) => updateBusinessInfo({ email: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#0E3B25]/20 rounded-lg"
+                />
+              </div>
               <ImagePickerField
                 label="Farm Emblem / Logo"
                 value={content.business.emblemUrl}

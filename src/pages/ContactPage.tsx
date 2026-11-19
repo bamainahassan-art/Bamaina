@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { CheckCircle2, MapPin, MessageCircle, Phone, Send } from 'lucide-react';
+import {
+  CheckCircle2,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Send,
+} from 'lucide-react';
 import { EditableSectionWrapper } from '../components/EditableSectionBar';
 import { useSiteContent } from '../context/SiteContentContext';
 
@@ -9,22 +16,58 @@ export const ContactPage: React.FC = () => {
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [interest, setInterest] = useState('Livestock Farming');
   const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submittedEnquiry, setSubmittedEnquiry] = useState<{
+    id?: string;
     fullName: string;
     phone: string;
+    customerEmail: string;
     interest: string;
     message: string;
+    mailtoUrl: string;
   } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const buildMailtoLink = (enquiry?: {
+    fullName: string;
+    phone: string;
+    customerEmail: string;
+    interest: string;
+    message: string;
+  }) => {
+    const emailAddress = business.email || 'bamainahassan@gmail.com';
+    if (!enquiry) {
+      const subject = `Farm Enquiry - ${business.name}`;
+      return `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}`;
+    }
+    const subject = `New Website Enquiry (${enquiry.interest}) - ${enquiry.fullName}`;
+    const bodyLines = [
+      `Hello ${business.name},`,
+      '',
+      `Customer Name: ${enquiry.fullName}`,
+      `Phone Number: ${enquiry.phone}`,
+      enquiry.customerEmail ? `Customer Email: ${enquiry.customerEmail}` : null,
+      `Area of Interest: ${enquiry.interest}`,
+      '',
+      'Message:',
+      enquiry.message,
+    ].filter((line): line is string => line !== null);
+
+    return `mailto:${emailAddress}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(bodyLines.join('\n'))}`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
     const trimmedName = fullName.trim();
     const trimmedPhone = phone.trim();
+    const trimmedEmail = customerEmail.trim();
     const trimmedMessage = message.trim();
 
     if (trimmedName.length < 2) {
@@ -35,20 +78,58 @@ export const ContactPage: React.FC = () => {
       setFormError('Please enter a valid telephone or WhatsApp number.');
       return;
     }
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setFormError('Please enter a valid email address or leave it blank.');
+      return;
+    }
     if (trimmedMessage.length < 5) {
       setFormError('Please enter a brief enquiry message.');
       return;
     }
 
-    setSubmittedEnquiry({
+    setSubmitting(true);
+    let savedId: string | undefined;
+    try {
+      const res = await fetch('/api/enquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientEmail: business.email,
+          customerName: trimmedName,
+          customerPhone: trimmedPhone,
+          customerEmail: trimmedEmail || undefined,
+          interest,
+          message: trimmedMessage,
+        }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { enquiry?: { id?: string } };
+        savedId = data.enquiry?.id;
+      }
+    } catch {
+      // Proceed cleanly with mailto fallback if network request fails
+    } finally {
+      setSubmitting(false);
+    }
+
+    const enquiryData = {
+      id: savedId,
       fullName: trimmedName,
       phone: trimmedPhone,
+      customerEmail: trimmedEmail,
       interest,
       message: trimmedMessage,
-    });
+    };
+    const mailtoUrl = buildMailtoLink(enquiryData);
+
+    setSubmittedEnquiry({ ...enquiryData, mailtoUrl });
     setFullName('');
     setPhone('');
+    setCustomerEmail('');
     setMessage('');
+
+    // Open customer's email client pre-addressed to bamainahassan@gmail.com
+    window.location.href = mailtoUrl;
   };
 
   return (
@@ -141,10 +222,27 @@ export const ContactPage: React.FC = () => {
                         </a>
                       </div>
                     </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-[#F4F7F5] border border-[#0E3B25]/12 flex items-center justify-center shrink-0">
+                        <Mail className="w-5 h-5 text-[#0E3B25]" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[#8A6110]">
+                          Official Email
+                        </p>
+                        <a
+                          href={`mailto:${business.email}`}
+                          className="text-base font-bold text-[#0E3B25] hover:text-[#8A6110] transition-colors break-all"
+                        >
+                          {business.email}
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Prominent WhatsApp Action Card */}
+                {/* Prominent WhatsApp, Call & Email Action Card */}
                 <div className="bg-[#0E3B25] text-white rounded-xl p-7 space-y-4 border border-[#DFB14B]/40">
                   <h3 className="font-display text-xl font-bold text-white">
                     {contact.whatsappBannerHeading}
@@ -165,6 +263,13 @@ export const ContactPage: React.FC = () => {
                       <span>Chat on WhatsApp</span>
                     </a>
                     <a
+                      href={buildMailtoLink()}
+                      className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-white text-[#0E3B25] text-sm font-semibold hover:bg-[#F2DFB0] transition-colors"
+                    >
+                      <Mail className="w-4 h-4 text-[#8A6110]" aria-hidden="true" />
+                      <span>Email Us</span>
+                    </a>
+                    <a
                       href={business.phoneHref}
                       className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-white/10 border border-white/25 text-white text-sm font-semibold hover:bg-white/20 transition-colors tabular-nums"
                     >
@@ -179,7 +284,7 @@ export const ContactPage: React.FC = () => {
               <div className="lg:col-span-7 bg-white rounded-xl border border-[#0E3B25]/12 p-7 sm:p-9 space-y-6">
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-[#8A6110]">
-                    Enquiry Form
+                    Enquiry Form · Directed to {business.email}
                   </p>
                   <h2 className="font-display text-3xl font-bold text-[#0E3B25]">
                     {contact.formHeading}
@@ -201,19 +306,28 @@ export const ContactPage: React.FC = () => {
                       />
                       <div className="space-y-1">
                         <h3 className="font-display text-base font-bold text-[#0E3B25]">
-                          Enquiry Prepared Successfully
+                          Enquiry Saved & Ready for {business.email}
                         </h3>
                         <p className="text-sm text-[#354B3E]">
                           Thank you, {submittedEnquiry.fullName}. Your enquiry regarding{' '}
                           <span className="font-semibold text-[#0E3B25]">
                             {submittedEnquiry.interest}
                           </span>{' '}
-                          has been recorded. Send it straight to our WhatsApp desk for
-                          immediate response, or call {business.phoneDisplay}.
+                          has been recorded
+                          {submittedEnquiry.id ? ` (Ref: ${submittedEnquiry.id})` : ''}.
+                          Use either option below to complete delivery via email or
+                          WhatsApp.
                         </p>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-3 pl-8">
+                      <a
+                        href={submittedEnquiry.mailtoUrl}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C8962E] text-[#082315] text-xs font-semibold hover:bg-[#DFB14B]"
+                      >
+                        <Mail className="w-4 h-4" aria-hidden="true" />
+                        <span>Send Email to {business.email}</span>
+                      </a>
                       <a
                         href={buildWhatsAppLink(
                           `Hello ${business.name},\nName: ${submittedEnquiry.fullName}\nPhone: ${submittedEnquiry.phone}\nDivision: ${submittedEnquiry.interest}\nEnquiry: ${submittedEnquiry.message}`
@@ -276,24 +390,42 @@ export const ContactPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor="contact-interest"
-                      className="block text-xs font-semibold text-[#0E3B25] mb-1.5"
-                    >
-                      Area of Interest
-                    </label>
-                    <select
-                      id="contact-interest"
-                      value={interest}
-                      onChange={(e) => setInterest(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-[#0E3B25]/20 text-sm text-[#14241B] bg-white focus:border-[#0E3B25]"
-                    >
-                      <option value="Livestock Farming">Livestock Farming</option>
-                      <option value="Poultry Farming">Poultry Farming</option>
-                      <option value="Fish Farming">Fish Farming</option>
-                      <option value="General Farm Enquiry">General Farm Enquiry</option>
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label
+                        htmlFor="contact-email"
+                        className="block text-xs font-semibold text-[#0E3B25] mb-1.5"
+                      >
+                        Your Email Address (Optional)
+                      </label>
+                      <input
+                        id="contact-email"
+                        type="email"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="w-full px-4 py-2.5 rounded-lg border border-[#0E3B25]/20 text-sm text-[#14241B] focus:border-[#0E3B25]"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="contact-interest"
+                        className="block text-xs font-semibold text-[#0E3B25] mb-1.5"
+                      >
+                        Area of Interest
+                      </label>
+                      <select
+                        id="contact-interest"
+                        value={interest}
+                        onChange={(e) => setInterest(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg border border-[#0E3B25]/20 text-sm text-[#14241B] bg-white focus:border-[#0E3B25]"
+                      >
+                        <option value="Livestock Farming">Livestock Farming</option>
+                        <option value="Poultry Farming">Poultry Farming</option>
+                        <option value="Fish Farming">Fish Farming</option>
+                        <option value="General Farm Enquiry">General Farm Enquiry</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>
@@ -317,20 +449,19 @@ export const ContactPage: React.FC = () => {
                   <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#0E3B25] text-white text-sm font-semibold hover:bg-[#145333] transition-colors cursor-pointer"
+                      disabled={submitting}
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#0E3B25] text-white text-sm font-semibold hover:bg-[#145333] disabled:opacity-50 transition-colors cursor-pointer"
                     >
                       <Send className="w-4 h-4 text-[#DFB14B]" aria-hidden="true" />
-                      <span>Submit Enquiry</span>
+                      <span>{submitting ? 'Submitting...' : 'Submit & Email Enquiry'}</span>
                     </button>
                     <span className="text-xs text-[#354B3E]">
-                      Or message{' '}
+                      Or email{' '}
                       <a
-                        href={buildWhatsAppLink()}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-semibold text-[#0E3B25] underline"
+                        href={`mailto:${business.email}`}
+                        className="font-semibold text-[#0E3B25] underline break-all"
                       >
-                        {business.whatsappNumber}
+                        {business.email}
                       </a>{' '}
                       directly.
                     </span>

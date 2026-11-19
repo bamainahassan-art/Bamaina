@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, MessageCircle, Pencil, Phone } from 'lucide-react';
+import { Mail, MapPin, MessageCircle, Pencil, Phone } from 'lucide-react';
 import { useSiteContent } from '../context/SiteContentContext';
 import { PageRoute } from '../types/site';
 import { ResilientImage } from './ResilientImage';
@@ -105,6 +105,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   className="hover:text-[#DFB14B] transition-colors tabular-nums"
                 >
                   WhatsApp: {business.whatsappNumber}
+                </a>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-[#DFB14B] shrink-0" aria-hidden="true" />
+                <a
+                  href={`mailto:${business.email}`}
+                  className="hover:text-[#DFB14B] transition-colors break-all"
+                >
+                  {business.email}
                 </a>
               </div>
             </div>

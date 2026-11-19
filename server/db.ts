@@ -206,6 +206,17 @@ export function getDb(): DatabaseSync {
       payment_reference TEXT NOT NULL,
       received_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS enquiries (
+      id TEXT PRIMARY KEY,
+      recipient_email TEXT NOT NULL,
+      customer_name TEXT NOT NULL,
+      customer_phone TEXT NOT NULL,
+      customer_email TEXT,
+      interest TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
 
   const countRow = db
@@ -316,3 +327,31 @@ export function listPaymentRecords(limit = 50): PaymentRecord[] {
     .prepare('SELECT * FROM payment_records ORDER BY id DESC LIMIT ?')
     .all(limit) as unknown as PaymentRecord[];
 }
+
+export function saveEnquiry(input: {
+  id: string;
+  recipientEmail: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  interest: string;
+  message: string;
+}) {
+  const db = getDb();
+  const createdAt = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO enquiries (id, recipient_email, customer_name, customer_phone, customer_email, interest, message, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    input.id,
+    input.recipientEmail,
+    input.customerName,
+    input.customerPhone,
+    input.customerEmail || null,
+    input.interest,
+    input.message,
+    createdAt
+  );
+  return { id: input.id, recipientEmail: input.recipientEmail, createdAt };
+}
+

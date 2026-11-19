@@ -30,6 +30,7 @@ export interface BusinessInfo {
   phoneHref: string;
   whatsappNumber: string;
   whatsappUrl: string;
+  email: string;
   emblemUrl: string;
 }
 

@@ -8,6 +8,7 @@ import {
   getPaymentRecordByReference,
   listActiveProducts,
   listPaymentRecords,
+  saveEnquiry,
   softDeleteProduct,
   upsertProduct,
 } from './server/db.ts';
@@ -53,6 +54,44 @@ export async function createAppServer() {
       currency: 'NGN',
       paystackMode: getPaystackMode(),
     });
+  });
+
+  app.post('/api/enquiries', (req, res) => {
+    const body = req.body as {
+      customerName?: string;
+      customerPhone?: string;
+      customerEmail?: string;
+      interest?: string;
+      message?: string;
+      recipientEmail?: string;
+    };
+
+    if (!body.customerName || body.customerName.trim().length < 2) {
+      return res.status(400).json({ error: 'Customer name is required.' });
+    }
+    if (!body.customerPhone || !/^[+\d\s()-]{7,20}$/.test(body.customerPhone.trim())) {
+      return res.status(400).json({ error: 'Valid phone number is required.' });
+    }
+    if (!body.message || body.message.trim().length < 5) {
+      return res.status(400).json({ error: 'Enquiry message is required.' });
+    }
+
+    const id = `ENQ-${Date.now().toString(36).toUpperCase()}-${crypto
+      .randomBytes(2)
+      .toString('hex')
+      .toUpperCase()}`;
+
+    const saved = saveEnquiry({
+      id,
+      recipientEmail: (body.recipientEmail || 'bamainahassan@gmail.com').trim(),
+      customerName: body.customerName.trim(),
+      customerPhone: body.customerPhone.trim(),
+      customerEmail: body.customerEmail?.trim() || undefined,
+      interest: (body.interest || 'General Farm Enquiry').trim(),
+      message: body.message.trim(),
+    });
+
+    return res.status(201).json({ ok: true, enquiry: saved });
   });
 
   // Trusted server-side products & NGN pricing catalog
