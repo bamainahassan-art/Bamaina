@@ -1,0 +1,8 @@
+{
+  "name": "Baffa Njangirde Agro-Allied Farm",
+  "description": "Integrated livestock farming, poultry production, and fish farming enterprise in Bamaina town, Jigawa State, Nigeria. Growing Agriculture, Building Prosperity.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
